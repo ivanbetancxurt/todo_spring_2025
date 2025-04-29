@@ -21,19 +21,72 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TODO Spring 2025',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData.light(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
+          seedColor: Colors.amber,
+          primary: Colors.amber,
+          secondary: Colors.green,
           brightness: Brightness.light,
         ),
-        textTheme: GoogleFonts.sairaCondensedTextTheme(ThemeData.light().textTheme),
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.amber[100],
+          foregroundColor: Colors.black,
+          elevation: 0,
+        ),
+        textTheme: GoogleFonts.quicksandTextTheme(ThemeData.light().textTheme),
+        cardTheme: CardTheme(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.black,
+            elevation: 2,
+          ),
+        ),
+        checkboxTheme: CheckboxThemeData(
+          fillColor: MaterialStateProperty.resolveWith<Color>((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.green;
+            }
+            return Colors.grey;
+          }),
+        ),
       ),
       darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
+          seedColor: Colors.amber,
+          primary: Colors.amber,
+          secondary: Colors.greenAccent,
           brightness: Brightness.dark,
         ),
-        textTheme: GoogleFonts.sairaCondensedTextTheme(ThemeData.dark().textTheme),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF2C2C2C),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        textTheme: GoogleFonts.quicksandTextTheme(ThemeData.dark().textTheme),
+        cardTheme: CardTheme(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.black,
+            elevation: 2,
+          ),
+        ),
+        checkboxTheme: CheckboxThemeData(
+          fillColor: MaterialStateProperty.resolveWith<Color>((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.greenAccent;
+            }
+            return Colors.grey;
+          }),
+        ),
       ),
       themeMode: ThemeMode.system,
       home: RouterScreen(),

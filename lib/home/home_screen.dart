@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/todo.dart';
+import '../data/user_stats.dart';
 import 'details/detail_screen.dart';
 import 'filter/filter_sheet.dart';
 
@@ -19,8 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final _controller = TextEditingController();
   final _searchController = TextEditingController();
   StreamSubscription<List<Todo>>? _todoSubscription;
+  StreamSubscription<UserStats>? _userStatsSubscription;
   List<Todo> _todos = [];
   List<Todo>? _filteredTodos;
+  UserStats? _userStats;
+  final _userStatsService = UserStatsService();
   FilterSheetResult _filters = FilterSheetResult(
     sortBy: 'date',
     order: 'descending',
@@ -37,6 +41,12 @@ class _HomeScreenState extends State<HomeScreen> {
           _filteredTodos = filterTodos();
         });
       });
+      
+      _userStatsSubscription = _userStatsService.getUserStatsStream(user.uid).listen((stats) {
+        setState(() {
+          _userStats = stats;
+        });
+      });
     }
   }
 
@@ -45,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _controller.dispose();
     _searchController.dispose();
     _todoSubscription?.cancel();
+    _userStatsSubscription?.cancel();
     super.dispose();
   }
 
@@ -82,6 +93,24 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Home'),
         actions: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.amber),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_userStats?.completedCount ?? 0}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -144,11 +173,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               return ListTile(
                                 leading: Checkbox(
                                   value: todo.completedAt != null,
-                                  onChanged: (bool? value) {
-                                    final updateData = {
-                                      'completedAt': value == true ? FieldValue.serverTimestamp() : null
-                                    };
-                                    FirebaseFirestore.instance.collection('todos').doc(todo.id).update(updateData);
+                                  onChanged: (bool? value) async {
+                                    final user = FirebaseAuth.instance.currentUser;
+                                    if (user != null) {
+                                      final updateData = {
+                                        'completedAt': value == true ? FieldValue.serverTimestamp() : null
+                                      };
+                                      await FirebaseFirestore.instance.collection('todos').doc(todo.id).update(updateData);
+                                      
+                                      // Update the user's completion counter
+                                      if (value == true) {
+                                        await _userStatsService.incrementCompletedCount(user.uid);
+                                      } else if (todo.completedAt != null) {
+                                        await _userStatsService.decrementCompletedCount(user.uid);
+                                      }
+                                    }
                                   },
                                 ),
                                 trailing: Icon(Icons.arrow_forward_ios),

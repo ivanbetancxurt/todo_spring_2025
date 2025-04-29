@@ -1,9 +1,11 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import '../../data/todo.dart';
+import '../../data/user_stats.dart';
 
 final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -19,12 +21,15 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late TextEditingController _textController;
   DateTime? _selectedDueDate;
+  final _userStatsService = UserStatsService();
+  bool _isCompleted = false;
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.todo.text);
     _selectedDueDate = widget.todo.dueAt;
+    _isCompleted = widget.todo.completedAt != null;
   }
 
   Future<void> _delete() async {
@@ -139,6 +144,44 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  Future<void> _toggleCompletion(bool? isCompleted) async {
+    if (isCompleted == _isCompleted) return;
+    
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    try {
+      final updateData = {
+        'completedAt': isCompleted == true ? FieldValue.serverTimestamp() : null
+      };
+      
+      await FirebaseFirestore.instance.collection('todos').doc(widget.todo.id).update(updateData);
+      
+      // Update the user's completion counter
+      if (isCompleted == true) {
+        await _userStatsService.incrementCompletedCount(user.uid);
+      } else {
+        await _userStatsService.decrementCompletedCount(user.uid);
+      }
+      
+      setState(() {
+        _isCompleted = isCompleted ?? false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(isCompleted == true ? 'Task completed!' : 'Task marked as incomplete')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update task: $e')),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _textController.dispose();
@@ -151,6 +194,11 @@ class _DetailScreenState extends State<DetailScreen> {
       appBar: AppBar(
         title: const Text('Details'),
         actions: [
+          IconButton(
+            icon: Icon(_isCompleted ? Icons.check_circle : Icons.check_circle_outline),
+            color: _isCompleted ? Colors.green : null,
+            onPressed: () => _toggleCompletion(!_isCompleted),
+          ),
           IconButton(
             icon: const Icon(Icons.delete),
             onPressed: () async {

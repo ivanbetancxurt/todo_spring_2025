@@ -14,6 +14,7 @@ class DetailScreen extends StatefulWidget {
   final Todo todo;
   final List<Todo> todos;
 
+
   const DetailScreen({super.key, required this.todo, required this.todos});
 
   @override
@@ -25,6 +26,7 @@ class _DetailScreenState extends State<DetailScreen> {
   DateTime? _selectedDueDate;
   final _userStatsService = UserStatsService();
   bool _isCompleted = false;
+  late String _priority;
 
   @override
   void initState() {
@@ -32,6 +34,7 @@ class _DetailScreenState extends State<DetailScreen> {
     _textController = TextEditingController(text: widget.todo.text);
     _selectedDueDate = widget.todo.dueAt;
     _isCompleted = widget.todo.completedAt != null;
+    _priority = widget.todo.priority;
   }
 
   Future<void> _delete() async {
@@ -338,6 +341,32 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
               ],
             ),
+            Row(
+              children: [
+                const Text('Priority: ', style: TextStyle(fontSize: 16)),
+                DropdownButton<String>(
+                  value: _priority,
+                  items: const [
+                    DropdownMenuItem(value: 'none', child: Text('None')),
+                    DropdownMenuItem(value: 'low', child: Text('Low')),
+                    DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                    DropdownMenuItem(value: 'high', child: Text('High')),
+                  ],
+                  onChanged: (newPriority) async {
+                    if (newPriority != null) {
+                      setState(() {
+                        _priority = newPriority; // Update local variable instantly
+                      });
+                      await FirebaseFirestore.instance
+                          .collection('todos')
+                          .doc(widget.todo.id)
+                          .update({'priority': newPriority}); // Update Firestore
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             ListTile(
               title: const Text('Due Date'),
               subtitle: Text(_selectedDueDate?.toLocal().toString().split('.')[0] ?? 'No due date'),

@@ -27,10 +27,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Todo> _todos = [];
   List<Todo>? _filteredTodos;
   UserStats? _userStats;
+  String _selectedPriority = 'none';
   final _userStatsService = UserStatsService();
   FilterSheetResult _filters = FilterSheetResult(
     sortBy: 'date',
     order: 'descending',
+    priority: 'none',
   );
 
   @override
@@ -71,12 +73,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
     if (_filters.sortBy == 'date') {
-      filteredTodos.sort((a, b) =>
-          _filters.order == 'ascending' ? a.createdAt.compareTo(b.createdAt) : b.createdAt.compareTo(a.createdAt));
+      filteredTodos.sort((a, b) => _filters.order == 'ascending'
+          ? a.createdAt.compareTo(b.createdAt)
+          : b.createdAt.compareTo(a.createdAt));
     } else if (_filters.sortBy == 'completed') {
       filteredTodos.sort((a, b) => _filters.order == 'ascending'
           ? (a.completedAt ?? DateTime(0)).compareTo(b.completedAt ?? DateTime(0))
           : (b.completedAt ?? DateTime(0)).compareTo(a.completedAt ?? DateTime(0)));
+    } else if (_filters.sortBy  == 'priority') {
+        const priorityOrder = {'none': 0, 'low': 1, 'medium': 2, 'high': 3};
+        filteredTodos.sort((a, b) => _filters.order == 'ascending'
+            ? priorityOrder[a.priority]!.compareTo(priorityOrder[b.priority]!)
+            : priorityOrder[b.priority]!.compareTo(priorityOrder[a.priority]!));
     }
 
     return filteredTodos;
@@ -188,8 +196,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               final todo = _filteredTodos?[index];
                               if (todo == null) return const SizedBox.shrink();
                               return ListTile(
-                                leading: Checkbox(
-                                  value: todo.completedAt != null,
+                                leading:
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                  Checkbox(value: todo.completedAt != null,
                                   onChanged: (bool? value) async {
                                     final user = FirebaseAuth.instance.currentUser;
                                     if (user != null) {
@@ -207,6 +218,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                     }
                                   },
                                 ),
+                                SizedBox(
+                                  width: 16, // Adjust the size as needed
+                                  height: 16,
+                                  child: CircleAvatar(
+                                    backgroundColor: todo.priority == 'high'
+                                        ? Colors.red
+                                        : todo.priority == 'medium'
+                                        ? Colors.orange
+                                        : todo.priority == 'low'
+                                        ? Colors.green
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                ],
+                                  ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -335,6 +361,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                         const SizedBox(width: 8),
+                        DropdownButton<String>(
+                          value: _selectedPriority,
+                          items: const [
+                            DropdownMenuItem(value: 'none', child: Text('None')),
+                            DropdownMenuItem(value: 'low', child: Text('Low')),
+                            DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                            DropdownMenuItem(value: 'high', child: Text('High')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedPriority = value ?? 'none';
+                            });
+                          },
+                        ),
                         ElevatedButton(
                           onPressed: () async {
                             if (user != null && _controller.text.isNotEmpty) {
@@ -343,13 +383,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
                                 'createdAt': FieldValue.serverTimestamp(),
                                 'uid': user.uid,
+                                'priority': _selectedPriority,
                               });
                               _controller.clear();
                               _descriptionController.clear();
+                              setState(() {
+                                _selectedPriority = 'none'; // Reset priority
+                              });
                             }
                           },
                           child: const Text('Add'),
                         ),
+
                       ],
                     ),
                   ),

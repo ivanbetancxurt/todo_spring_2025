@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 class FilterSheetResult {
   final String sortBy;
   final String order;
+  final String priority;
 
-  FilterSheetResult({required this.sortBy, required this.order});
+  FilterSheetResult({required this.sortBy, required this.order,  required this.priority,});
 }
 
 class FilterSheet extends StatefulWidget {
@@ -22,17 +23,24 @@ class FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<FilterSheet> {
   String _sortBy = 'date';
   String _order = 'ascending';
+  String _priority = 'none';
 
   @override
   void initState() {
     _sortBy = widget.initialFilters.sortBy;
     _order = widget.initialFilters.order;
+    _priority = widget.initialFilters.priority;
     super.initState();
   }
 
+
+
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SingleChildScrollView(
+        child: IntrinsicHeight(
+      child: Container(
       padding: const EdgeInsets.only(top: 16, left: 32, right: 32, bottom: 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -50,6 +58,7 @@ class _FilterSheetState extends State<FilterSheet> {
                   items: const [
                     DropdownMenuItem(value: 'date', child: Text('Date')),
                     DropdownMenuItem(value: 'completed', child: Text('Completed')),
+                    DropdownMenuItem(value: 'priority', child: Text('Priority')),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -75,18 +84,20 @@ class _FilterSheetState extends State<FilterSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 200),
+          const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(
                 context,
-                FilterSheetResult(sortBy: _sortBy, order: _order),
+                FilterSheetResult(sortBy: _sortBy, order: _order,  priority: _priority),
               );
             },
             child: const Text('Apply'),
           ),
         ],
       ),
+      ),
+    ),
     );
   }
 }

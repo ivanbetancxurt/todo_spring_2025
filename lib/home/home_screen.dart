@@ -8,6 +8,8 @@ import '../data/todo.dart';
 import '../data/user_stats.dart';
 import 'details/detail_screen.dart';
 import 'filter/filter_sheet.dart';
+import 'archive/archive_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -63,8 +65,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Todo> filterTodos() {
     List<Todo> filteredTodos = _todos.where((todo) {
-      return todo.text.toLowerCase().contains(_searchController.text.toLowerCase());
+      return !todo.isArchived && todo.text.toLowerCase().contains(_searchController.text.toLowerCase());
     }).toList();
+
+
 
     if (_filters.sortBy == 'date') {
       filteredTodos.sort((a, b) =>
@@ -95,6 +99,17 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Home'),
         actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ArchivedTodosScreen(todos: _todos.where((todo) => todo.isArchived).toList()),
+                ),
+              );
+            },
+            child: const Text('Archived'),
+          ),
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -192,33 +207,91 @@ class _HomeScreenState extends State<HomeScreen> {
                                     }
                                   },
                                 ),
-                                trailing: Icon(Icons.arrow_forward_ios),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.archive),
+                                      onPressed: () async {
+                                        final int index = _filteredTodos!.indexOf(todo);
+
+                                        // Archive theTODO in Firestore
+                                        await FirebaseFirestore.instance.collection('todos').doc(todo.id).update({'isArchived': true});
+
+                                        setState(() {
+                                          _filteredTodos!.removeAt(index);
+                                        });
+
+                                        // Show SnackBar with Undo action
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Todo archived!'),
+                                            action: SnackBarAction(
+                                              label: 'Undo',
+                                              onPressed: () async {
+                                                // Revert the archive action in Firestore
+                                                await FirebaseFirestore.instance.collection('todos').doc(todo.id).update({'isArchived': false});
+
+                                                setState(() {
+                                                  // Ensure theTodo is not duplicated in the filtered list
+                                                  if (!_filteredTodos!.contains(todo)) {
+                                                    _filteredTodos!.insert(index, todo);
+                                                  }
+
+                                                  // Ensure theTodo is not duplicated in the main list
+                                                  if (!_todos.any((t) => t.id == todo.id)) {
+                                                    _todos.add(todo);
+                                                  }
+
+                                                  // Reapply filters to maintain consistency
+                                                  _filteredTodos = filterTodos();
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const Icon(Icons.arrow_forward_ios),
+                                  ],
+                                ),
                                 title: Text(
                                   todo.text,
                                   style: todo.completedAt != null
                                       ? const TextStyle(decoration: TextDecoration.lineThrough)
                                       : null,
                                 ),
-                                subtitle: todo.description != null && todo.description!.isNotEmpty
-                                    ? Row(
+                                subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.notes, size: 16, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        todo.description!,
+                                    if (todo.description != null && todo.description!.isNotEmpty)
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(Icons.notes, size: 16, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              todo.description!,
+                                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    if (todo.dueAt != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        todo.dueAt!.toLocal().toString().split(' ')[0],
                                         style: const TextStyle(fontSize: 12, color: Colors.grey),
                                       ),
-                                    ),
+                                    ],
                                   ],
-                                )
-                                    : null,
+                                ),
                                 onTap: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => DetailScreen(todo: todo),
+                                      builder: (context) => DetailScreen(todo: todo, todos: _todos),
                                     ),
                                   );
                                 },
@@ -254,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 controller: _descriptionController,
                                 maxLines: null,
                                 decoration: const InputDecoration(
-                                  labelText: 'Description:',
+                                  labelText: 'Description',
                                   border: InputBorder.none,
                                 ),
                               ),

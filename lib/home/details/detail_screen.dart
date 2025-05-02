@@ -7,12 +7,14 @@ import 'package:timezone/timezone.dart' as tz;
 import '../../data/todo.dart';
 import '../../data/user_stats.dart';
 
+
 final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 class DetailScreen extends StatefulWidget {
   final Todo todo;
+  final List<Todo> todos;
 
-  const DetailScreen({super.key, required this.todo});
+  const DetailScreen({super.key, required this.todo, required this.todos});
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
@@ -218,6 +220,50 @@ class _DetailScreenState extends State<DetailScreen> {
             icon: Icon(_isCompleted ? Icons.check_circle : Icons.check_circle_outline),
             color: _isCompleted ? Colors.green : null,
             onPressed: () => _toggleCompletion(!_isCompleted),
+          ),
+          IconButton(
+            icon: const Icon(Icons.archive),
+            onPressed: () async {
+
+              // Archive theTODO in Firestore
+              await FirebaseFirestore.instance
+                  .collection('todos')
+                  .doc(widget.todo.id)
+                  .update({'isArchived': true});
+
+              if (mounted) {
+                Navigator.pop(context);
+
+                // Show SnackBar on the HomeScreen
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Todo archived!'),
+                    action: SnackBarAction(
+                      label: 'Undo',
+                      onPressed: () async {
+                        // Unarchive theTODO in Firestore
+                        await FirebaseFirestore.instance
+                            .collection('todos')
+                            .doc(widget.todo.id)
+                            .update({'isArchived': false});
+
+                        // Navigate back to the DetailScreen for theTODO
+                        if (mounted) {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => DetailScreen(
+                                todo: widget.todo,
+                                todos: widget.todos,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                );
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.delete),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:timezone/timezone.dart' as tz;
 import '../../data/todo.dart';
 import '../../data/user_stats.dart';
@@ -28,6 +29,8 @@ class _DetailScreenState extends State<DetailScreen> {
   bool _isCompleted = false;
   late String _priority;
   String? _recurrence;
+  int? _color;
+
 
   @override
   void initState() {
@@ -37,6 +40,7 @@ class _DetailScreenState extends State<DetailScreen> {
     _isCompleted = widget.todo.completedAt != null;
     _priority = widget.todo.priority;
     _recurrence = widget.todo.recurrence;
+    _color = widget.todo.color;
   }
 
   Future<void> _delete() async {
@@ -391,6 +395,44 @@ class _DetailScreenState extends State<DetailScreen> {
                 }
               },
             ),
+              ],
+            ),
+            Row(
+              children: [
+                const Text('Color: ', style: TextStyle(fontSize: 16)),
+                GestureDetector(
+                  onTap: () async {
+                    await showDialog<Color>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Pick a color'),
+                        content: SingleChildScrollView(
+                          child: BlockPicker(
+                            pickerColor: _color != null ? Color(_color!) : Colors.grey,
+                            onColorChanged: (newColor) async {
+                              Navigator.of(context).pop(newColor);
+                                setState(() {
+                                  _color = newColor.toARGB32();
+                                });
+                                await FirebaseFirestore.instance
+                                    .collection('todos')
+                                    .doc(widget.todo.id)
+                                    .update({'color': newColor.toARGB32()});
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: _color != null ? Color(_color!) : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

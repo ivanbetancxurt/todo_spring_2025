@@ -11,6 +11,7 @@ class Todo {
   final bool isArchived;
   final String priority;
   final String? recurrence;
+  final int? color;
 
   Todo({
     required this.id,
@@ -23,6 +24,7 @@ class Todo {
     required this.isArchived,
     required this.priority,
     this.recurrence,
+    this.color,
   });
 
   Todo copyWith({
@@ -36,6 +38,7 @@ class Todo {
     bool? isArchived,
     String? priority,
     String? recurrence,
+    int? color,
   }) {
     return Todo(
       id: id ?? this.id,
@@ -48,6 +51,7 @@ class Todo {
       isArchived: isArchived ?? this.isArchived,
       priority: priority ?? this.priority,
       recurrence: recurrence ?? this.recurrence,
+      color: color ?? this.color,
     );
   }
 
@@ -62,6 +66,7 @@ class Todo {
       'isArchived': isArchived,
       'priority': priority,
       'recurrence': recurrence,
+      'color': color,
 
     };
   }
@@ -79,6 +84,7 @@ class Todo {
       isArchived: data['isArchived'] ?? false,
       priority: data['priority'] ?? 'none',
       recurrence: data['recurrence'],
+      color: data['color'],
     );
   }
 }

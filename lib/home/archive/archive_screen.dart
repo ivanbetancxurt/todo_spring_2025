@@ -24,7 +24,7 @@ class _ArchivedTodosScreenState extends State<ArchivedTodosScreen> {
   Future<void> _unarchiveTodo(Todo todo) async {
     final int index = _archivedTodos.indexOf(todo);
 
-    // Update Firestore to unarchive theTodo
+    // Update Firestore to unarchive theGTodo
     await FirebaseFirestore.instance
         .collection('todos')
         .doc(todo.id)

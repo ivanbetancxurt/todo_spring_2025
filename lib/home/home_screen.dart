@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   UserStats? _userStats;
   String _selectedPriority = 'none';
   String? _selectedRecurrence;
+  Color? _selectedColor;
   final _userStatsService = UserStatsService();
   FilterSheetResult _filters = FilterSheetResult(
     sortBy: 'date',
@@ -224,29 +225,43 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemBuilder: (context, index) {
                               final todo = _filteredTodos?[index];
                               if (todo == null) return const SizedBox.shrink();
-                              return ListTile(
+                              return Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                                  decoration: BoxDecoration(
+                                    color: todo.color != null ? Color(todo.color!) : Colors.white,
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withValues(),
+                                        spreadRadius: 1,
+                                        blurRadius: 3,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                child: ListTile(
                                 leading:
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                  Checkbox(value: todo.completedAt != null,
-                                  onChanged: (bool? value) async {
-                                    final user = FirebaseAuth.instance.currentUser;
-                                    if (user != null) {
-                                      final updateData = {
-                                        'completedAt': value == true ? FieldValue.serverTimestamp() : null
-                                      };
-                                      await FirebaseFirestore.instance.collection('todos').doc(todo.id).update(updateData);
-                                      
-                                      // Update the user's completion counter
-                                      if (value == true) {
-                                        await _userStatsService.incrementCompletedCount(user.uid);
-                                      } else if (todo.completedAt != null) {
-                                        await _userStatsService.decrementCompletedCount(user.uid);
-                                      }
-                                    }
-                                  },
-                                ),
+                                      Checkbox(value: todo.completedAt != null,
+                                      onChanged: (bool? value) async {
+                                        final user = FirebaseAuth.instance.currentUser;
+                                        if (user != null) {
+                                          final updateData = {
+                                            'completedAt': value == true ? FieldValue.serverTimestamp() : null
+                                          };
+                                          await FirebaseFirestore.instance.collection('todos').doc(todo.id).update(updateData);
+
+                                          // Update the user's completion counter
+                                          if (value == true) {
+                                            await _userStatsService.incrementCompletedCount(user.uid);
+                                          } else if (todo.completedAt != null) {
+                                            await _userStatsService.decrementCompletedCount(user.uid);
+                                          }
+                                        }
+                                      },
+                                    ),
                                 SizedBox(
                                   width: 16, // Adjust the size as needed
                                   height: 16,
@@ -363,12 +378,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   );
                                 },
+                                ),
                               );
                             },
                           ),
                   ),
                   Container(
-                    color: Colors.green[100],
+                    color: Colors.blue[100],
                     padding: const EdgeInsets.all(32.0),
                     child: Column(
                       // crossAxisAlignment: CrossAxisAlignment.end,
@@ -451,6 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'uid': user.uid,
                                 'priority': _selectedPriority,
                                 'recurrence': _selectedRecurrence,
+                                'color': _selectedColor?.toARGB32(),
                               });
                               _controller.clear();
                               _descriptionController.clear();

@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Todo>? _filteredTodos;
   UserStats? _userStats;
   String _selectedPriority = 'none';
+  String? _selectedRecurrence;
   final _userStatsService = UserStatsService();
   FilterSheetResult _filters = FilterSheetResult(
     sortBy: 'date',
@@ -88,6 +89,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return filteredTodos;
+  }
+
+  List<Todo> handleRecurringTodos(List<Todo> todos) {
+    final now = DateTime.now();
+    List<Todo> updatedTodos = [];
+
+    for (var todo in todos) {
+      if (todo.recurrence == 'daily' && todo.dueAt != null) {
+        while (todo.dueAt!.isBefore(now)) {
+          todo = todo.copyWith(dueAt: todo.dueAt!.add(Duration(days: 1)));
+        }
+      } else if (todo.recurrence == 'weekly' && todo.dueAt != null) {
+        while (todo.dueAt!.isBefore(now)) {
+          todo = todo.copyWith(dueAt: todo.dueAt!.add(Duration(days: 7)));
+        }
+      } else if (todo.recurrence == 'monthly' && todo.dueAt != null) {
+        while (todo.dueAt!.isBefore(now)) {
+          todo = todo.copyWith(dueAt: DateTime(
+            todo.dueAt!.year,
+            todo.dueAt!.month + 1,
+            todo.dueAt!.day,
+          ));
+        }
+      }
+      updatedTodos.add(todo);
+    }
+
+    return updatedTodos;
   }
 
   Stream<List<Todo>> getTodosForUser(String userId) {
@@ -311,6 +340,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                         style: const TextStyle(fontSize: 12, color: Colors.grey),
                                       ),
                                     ],
+                                    if (todo.recurrence != null) ...[
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.repeat, size: 16, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Repeats: ${todo.recurrence}',
+                                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 onTap: () {
@@ -361,20 +403,44 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                         const SizedBox(width: 8),
-                        DropdownButton<String>(
-                          value: _selectedPriority,
-                          items: const [
-                            DropdownMenuItem(value: 'none', child: Text('None')),
-                            DropdownMenuItem(value: 'low', child: Text('Low')),
-                            DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                            DropdownMenuItem(value: 'high', child: Text('High')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedPriority = value ?? 'none';
-                            });
-                          },
-                        ),
+                      Row(
+                        children: [
+                          const Text('Priority: ', style: TextStyle(fontSize: 16)),
+                          DropdownButton<String>(
+                            value: _selectedPriority,
+                            items: const [
+                              DropdownMenuItem(value: 'none', child: Text('None')),
+                              DropdownMenuItem(value: 'low', child: Text('Low')),
+                              DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                              DropdownMenuItem(value: 'high', child: Text('High')),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedPriority = value ?? 'none';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Text('Recurrence: ', style: TextStyle(fontSize: 16)),
+                          DropdownButton<String>(
+                            value: _selectedRecurrence,
+                            items: const [
+                              DropdownMenuItem(value: null, child: Text('None')),
+                              DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                              DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                              DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedRecurrence = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
                         ElevatedButton(
                           onPressed: () async {
                             if (user != null && _controller.text.isNotEmpty) {
@@ -384,11 +450,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'createdAt': FieldValue.serverTimestamp(),
                                 'uid': user.uid,
                                 'priority': _selectedPriority,
+                                'recurrence': _selectedRecurrence,
                               });
                               _controller.clear();
                               _descriptionController.clear();
                               setState(() {
-                                _selectedPriority = 'none'; // Reset priority
+                                _selectedPriority = 'none';// Reset priority
+                                _selectedRecurrence = null;
                               });
                             }
                           },

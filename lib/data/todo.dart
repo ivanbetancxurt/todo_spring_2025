@@ -10,6 +10,7 @@ class Todo {
   final DateTime? dueAt;
   final bool isArchived;
   final String priority;
+  final String? recurrence;
 
   Todo({
     required this.id,
@@ -21,7 +22,34 @@ class Todo {
     required this.dueAt,
     required this.isArchived,
     required this.priority,
+    this.recurrence,
   });
+
+  Todo copyWith({
+    String? id,
+    String? text,
+    String? description,
+    String? uid,
+    DateTime? createdAt,
+    DateTime? completedAt,
+    DateTime? dueAt,
+    bool? isArchived,
+    String? priority,
+    String? recurrence,
+  }) {
+    return Todo(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      description: description ?? this.description,
+      uid: uid ?? this.uid,
+      createdAt: createdAt ?? this.createdAt,
+      completedAt: completedAt ?? this.completedAt,
+      dueAt: dueAt ?? this.dueAt,
+      isArchived: isArchived ?? this.isArchived,
+      priority: priority ?? this.priority,
+      recurrence: recurrence ?? this.recurrence,
+    );
+  }
 
   Map<String, dynamic> toSnapshot() {
     return {
@@ -33,6 +61,7 @@ class Todo {
       'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null,
       'isArchived': isArchived,
       'priority': priority,
+      'recurrence': recurrence,
 
     };
   }
@@ -49,6 +78,7 @@ class Todo {
       dueAt: data['dueAt'] != null ? (data['dueAt'] as Timestamp).toDate() : null,
       isArchived: data['isArchived'] ?? false,
       priority: data['priority'] ?? 'none',
+      recurrence: data['recurrence'],
     );
   }
 }

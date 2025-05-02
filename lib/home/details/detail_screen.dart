@@ -27,6 +27,7 @@ class _DetailScreenState extends State<DetailScreen> {
   final _userStatsService = UserStatsService();
   bool _isCompleted = false;
   late String _priority;
+  String? _recurrence;
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _DetailScreenState extends State<DetailScreen> {
     _selectedDueDate = widget.todo.dueAt;
     _isCompleted = widget.todo.completedAt != null;
     _priority = widget.todo.priority;
+    _recurrence = widget.todo.recurrence;
   }
 
   Future<void> _delete() async {
@@ -364,6 +366,31 @@ class _DetailScreenState extends State<DetailScreen> {
                     }
                   },
                 ),
+              ],
+            ),
+            Row(
+              children: [
+                const Text('Repeat: ', style: TextStyle(fontSize: 16)),
+            DropdownButton<String>(
+              value: _recurrence,
+              items: const [
+                DropdownMenuItem(value: null, child: Text('None')),
+                DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+              ],
+              onChanged: (newRecurrence) async {
+                if (newRecurrence != null) {
+                  setState(() {
+                    _recurrence = newRecurrence;
+                  });
+                  await FirebaseFirestore.instance
+                      .collection('todos')
+                      .doc(widget.todo.id)
+                      .update({'recurrence': newRecurrence});
+                }
+              },
+            ),
               ],
             ),
             const SizedBox(height: 16),

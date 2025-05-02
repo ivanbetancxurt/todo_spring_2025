@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _controller = TextEditingController();
   final _searchController = TextEditingController();
+  final _descriptionController = TextEditingController();
   StreamSubscription<List<Todo>>? _todoSubscription;
   StreamSubscription<UserStats>? _userStatsSubscription;
   List<Todo> _todos = [];
@@ -53,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _descriptionController.dispose();
     _searchController.dispose();
     _todoSubscription?.cancel();
     _userStatsSubscription?.cancel();
@@ -197,6 +199,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ? const TextStyle(decoration: TextDecoration.lineThrough)
                                       : null,
                                 ),
+                                subtitle: todo.description != null && todo.description!.isNotEmpty
+                                    ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.notes, size: 16, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        todo.description!,
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                                    : null,
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -212,17 +229,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     color: Colors.green[100],
                     padding: const EdgeInsets.all(32.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    child: Column(
+                      // crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            keyboardType: TextInputType.text,
+                      TextField(
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
                             controller: _controller,
+                            maxLines: null,
                             decoration: const InputDecoration(
-                              labelText: 'Enter Task:',
+                              labelText: 'Task',
+                              border: InputBorder.none,
                             ),
                           ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.notes, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
+                                controller: _descriptionController,
+                                maxLines: null,
+                                decoration: const InputDecoration(
+                                  labelText: 'Description:',
+                                  border: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
@@ -230,10 +267,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (user != null && _controller.text.isNotEmpty) {
                               await FirebaseFirestore.instance.collection('todos').add({
                                 'text': _controller.text,
+                                'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
                                 'createdAt': FieldValue.serverTimestamp(),
                                 'uid': user.uid,
                               });
                               _controller.clear();
+                              _descriptionController.clear();
                             }
                           },
                           child: const Text('Add'),

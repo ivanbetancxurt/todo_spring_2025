@@ -67,6 +67,26 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
+  Future<void> _updateDescription(String newDescription) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('todos')
+          .doc(widget.todo.id)
+          .update({'description': newDescription.isNotEmpty ? newDescription : null});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Description updated!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update description: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _updateDueDate(DateTime? newDueDate) async {
     try {
       await FirebaseFirestore.instance
@@ -232,9 +252,12 @@ class _DetailScreenState extends State<DetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
               controller: _textController,
+              maxLines: null,
               decoration: const InputDecoration(
-                border: UnderlineInputBorder(),
+                border: InputBorder.none,
               ),
               onSubmitted: (newText) async {
                 if (newText.isNotEmpty && newText != widget.todo.text) {
@@ -243,6 +266,32 @@ class _DetailScreenState extends State<DetailScreen> {
               },
             ),
             const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 14.0), // Adjust alignment to the first line
+                  child: const Icon(Icons.notes, size: 16, color: Colors.grey),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: TextField(
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    controller: TextEditingController(text: widget.todo.description),
+                    maxLines: null,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (newDescription) async {
+                      if (newDescription.isNotEmpty && newDescription != widget.todo.description) {
+                        await _updateDescription(newDescription);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
             ListTile(
               title: const Text('Due Date'),
               subtitle: Text(_selectedDueDate?.toLocal().toString().split('.')[0] ?? 'No due date'),

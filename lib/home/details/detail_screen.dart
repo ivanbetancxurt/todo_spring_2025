@@ -24,6 +24,7 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   late TextEditingController _textController;
+  late TextEditingController _subtaskController;
   DateTime? _selectedDueDate;
   final _userStatsService = UserStatsService();
   bool _isCompleted = false;
@@ -36,6 +37,7 @@ class _DetailScreenState extends State<DetailScreen> {
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.todo.text);
+    _subtaskController = TextEditingController();
     _selectedDueDate = widget.todo.dueAt;
     _isCompleted = widget.todo.completedAt != null;
     _priority = widget.todo.priority;
@@ -216,6 +218,7 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void dispose() {
     _textController.dispose();
+    _subtaskController.dispose();
     super.dispose();
   }
 
@@ -319,6 +322,69 @@ class _DetailScreenState extends State<DetailScreen> {
                   await _updateText(newText);
                 }
               },
+            ),
+            Column(
+              children: [
+                ...widget.todo.subtasks.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final subtask = entry.value;
+                  return Row(
+                    children: [
+                      Checkbox(
+                        value: subtask['completed'] ?? false,
+                        shape: const CircleBorder(),
+                        onChanged: (value) async {
+                          final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks);
+                          updatedSubtasks[index]['completed'] = value;
+                          await FirebaseFirestore.instance
+                              .collection('todos')
+                              .doc(widget.todo.id)
+                              .update({'subtasks': updatedSubtasks});
+                          setState(() {
+                            widget.todo.subtasks[index]['completed'] = value;
+                          });
+                        },
+                      ),
+                      Expanded(child: Text(subtask['text'])),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks);
+                          updatedSubtasks.removeAt(index);
+                          await FirebaseFirestore.instance
+                              .collection('todos')
+                              .doc(widget.todo.id)
+                              .update({'subtasks': updatedSubtasks});
+                          setState(() {
+                            widget.todo.subtasks.removeAt(index);
+                          });
+                        },
+                      ),
+                    ],
+                  );
+                }).toList(),
+                TextField(
+                  controller: _subtaskController,
+                  decoration: const InputDecoration(
+                    hintText: 'Add Subtask',
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (value) async {
+                    if (value.isNotEmpty) {
+                      final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks)
+                        ..add({'text': value, 'completed': false});
+                      await FirebaseFirestore.instance
+                          .collection('todos')
+                          .doc(widget.todo.id)
+                          .update({'subtasks': updatedSubtasks});
+                      setState(() {
+                        widget.todo.subtasks.add({'text': value, 'completed': false});
+                        _subtaskController.clear();
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(

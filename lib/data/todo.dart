@@ -12,6 +12,7 @@ class Todo {
   final String priority;
   final String? recurrence;
   final int? color;
+  final List<Map<String, dynamic>> subtasks;
 
   Todo({
     required this.id,
@@ -25,6 +26,7 @@ class Todo {
     required this.priority,
     this.recurrence,
     this.color,
+    this.subtasks = const [],
   });
 
   Todo copyWith({
@@ -39,6 +41,7 @@ class Todo {
     String? priority,
     String? recurrence,
     int? color,
+    List<Map<String, dynamic>>? subtasks,
   }) {
     return Todo(
       id: id ?? this.id,
@@ -52,6 +55,7 @@ class Todo {
       priority: priority ?? this.priority,
       recurrence: recurrence ?? this.recurrence,
       color: color ?? this.color,
+      subtasks: subtasks ?? this.subtasks,
     );
   }
 
@@ -67,6 +71,7 @@ class Todo {
       'priority': priority,
       'recurrence': recurrence,
       'color': color,
+      'subtasks': subtasks,
 
     };
   }
@@ -85,6 +90,7 @@ class Todo {
       priority: data['priority'] ?? 'none',
       recurrence: data['recurrence'],
       color: data['color'],
+      subtasks: List<Map<String, dynamic>>.from(data['subtasks'] ?? []),
     );
   }
 }

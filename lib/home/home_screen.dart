@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _controller = TextEditingController();
   final _searchController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _subtaskController = TextEditingController();
   StreamSubscription<List<Todo>>? _todoSubscription;
   StreamSubscription<UserStats>? _userStatsSubscription;
   List<Todo> _todos = [];
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedPriority = 'none';
   String? _selectedRecurrence;
   Color? _selectedColor;
+  List<Map<String, dynamic>> _subtasks = [];
   final _userStatsService = UserStatsService();
   FilterSheetResult _filters = FilterSheetResult(
     sortBy: 'date',
@@ -64,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     _todoSubscription?.cancel();
     _userStatsSubscription?.cancel();
+    _subtaskController.dispose();
     super.dispose();
   }
 
@@ -226,6 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               final todo = _filteredTodos?[index];
                               if (todo == null) return const SizedBox.shrink();
                               return Container(
+                                  key: ValueKey(todo.id),
                                   margin: const EdgeInsets.symmetric(vertical: 4.0),
                                   decoration: BoxDecoration(
                                     color: todo.color != null ? Color(todo.color!) : Colors.white,
@@ -283,13 +287,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                     IconButton(
                                       icon: const Icon(Icons.archive),
                                       onPressed: () async {
-                                        final int index = _filteredTodos!.indexOf(todo);
 
                                         // Archive theTODO in Firestore
                                         await FirebaseFirestore.instance.collection('todos').doc(todo.id).update({'isArchived': true});
 
                                         setState(() {
-                                          _filteredTodos!.removeAt(index);
+                                          _todos = _todos.map((t) {
+                                            if (t.id == todo.id) {
+                                              return t.copyWith(isArchived: true);
+                                            }
+                                            return t;
+                                          }).toList();
+                                          _filteredTodos = filterTodos();
                                         });
 
                                         // Show SnackBar with Undo action
@@ -303,15 +312,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 await FirebaseFirestore.instance.collection('todos').doc(todo.id).update({'isArchived': false});
 
                                                 setState(() {
-                                                  // Ensure theTodo is not duplicated in the filtered list
-                                                  if (!_filteredTodos!.contains(todo)) {
-                                                    _filteredTodos!.insert(index, todo);
-                                                  }
 
-                                                  // Ensure theTodo is not duplicated in the main list
-                                                  if (!_todos.any((t) => t.id == todo.id)) {
-                                                    _todos.add(todo);
-                                                  }
+                                                  _todos = _todos.map((t) {
+                                                    if (t.id == todo.id) {
+                                                      return t.copyWith(isArchived: false);
+                                                    }
+                                                    return t;
+                                                  }).toList();
 
                                                   // Reapply filters to maintain consistency
                                                   _filteredTodos = filterTodos();
@@ -334,6 +341,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    if (todo.subtasks.isNotEmpty)
+                                      ...todo.subtasks.asMap().entries.map((entry) {
+                                        final subtaskIndex = entry.key;
+                                        final subtask = entry.value;
+                                        return Container(
+                                          margin: const EdgeInsets.only(bottom: 4.0),
+                                          child: Row(
+                                            children: [
+                                              Checkbox(
+                                                value: subtask['completed'] ?? false,
+                                                shape: const CircleBorder(),
+                                                onChanged: (value) async {
+                                                  final updatedSubtasks = List<Map<String, dynamic>>.from(todo.subtasks);
+                                                  updatedSubtasks[subtaskIndex]['completed'] = value;
+                                                  await FirebaseFirestore.instance
+                                                      .collection('todos')
+                                                      .doc(todo.id)
+                                                      .update({'subtasks': updatedSubtasks});
+                                                  setState(() {
+                                                    todo.subtasks[subtaskIndex]['completed'] = value;
+                                                  });
+                                                },
+                                              ),
+                                              Text(subtask['text']),
+                                            ],
+                                          ),
+                                        );
+                                      }),
                                     if (todo.description != null && todo.description!.isNotEmpty)
                                       Row(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,6 +434,48 @@ class _HomeScreenState extends State<HomeScreen> {
                               border: InputBorder.none,
                             ),
                           ),
+                        Column(
+                          children: [
+                            // Display the list of subtasks
+                            ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _subtasks.length,
+                              itemBuilder: (context, index) {
+                                final subtask = _subtasks[index];
+                                return Row(
+                                  children: [
+                                    Checkbox(
+                                      value: subtask['completed'] ?? false,
+                                      shape: const CircleBorder(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _subtasks[index]['completed'] = value;
+                                        });
+                                      },
+                                    ),
+                                    Text(subtask['text']),
+                                  ],
+                                );
+                              },
+                            ),
+                            // Input field for adding subtasks
+                            TextField(
+                              controller: _subtaskController,
+                              decoration: const InputDecoration(
+                                hintText: 'Add Subtask',
+                                border: InputBorder.none, // Removes the bounding box
+                              ),
+                              onSubmitted: (value) {
+                                if (value.isNotEmpty) {
+                                  setState(() {
+                                    _subtasks.add({'text': value, 'completed': false});
+                                  });
+                                  _subtaskController.clear();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -468,9 +545,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'priority': _selectedPriority,
                                 'recurrence': _selectedRecurrence,
                                 'color': _selectedColor?.toARGB32(),
+                                'subtasks': _subtasks,
                               });
                               _controller.clear();
                               _descriptionController.clear();
+                              _subtasks.clear();
                               setState(() {
                                 _selectedPriority = 'none';// Reset priority
                                 _selectedRecurrence = null;

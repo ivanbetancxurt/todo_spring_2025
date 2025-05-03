@@ -70,10 +70,22 @@ class _ArchivedTodosScreenState extends State<ArchivedTodosScreen> {
         itemBuilder: (context, index) {
           final todo = _archivedTodos[index];
           return ListTile(
+            key: ValueKey(todo.id),
             title: Text(todo.text),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (todo.subtasks.isNotEmpty)
+                  ...todo.subtasks.map((subtask) => Row(
+                    children: [
+                      Checkbox(
+                        value: subtask['completed'] ?? false,
+                        shape: const CircleBorder(),
+                        onChanged: null, // Archived TODOs are read-only
+                      ),
+                      Text(subtask['text']),
+                    ],
+                  )),
                 if (todo.description != null && todo.description!.isNotEmpty)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

@@ -341,6 +341,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             child: TextField(
                               controller: TextEditingController(text: subtask['text']),
                               maxLines: null,
+                              textInputAction: TextInputAction.newline,
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                               ),

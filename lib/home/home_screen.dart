@@ -9,6 +9,7 @@ import '../data/user_stats.dart';
 import 'details/detail_screen.dart';
 import 'filter/filter_sheet.dart';
 import 'archive/archive_screen.dart';
+import 'addTodo_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -64,9 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _controller.dispose();
     _descriptionController.dispose();
     _searchController.dispose();
+    _subtaskController.dispose();
     _todoSubscription?.cancel();
     _userStatsSubscription?.cancel();
-    _subtaskController.dispose();
     super.dispose();
   }
 
@@ -93,6 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return filteredTodos;
+  }
+
+  String? get _currentTodoId {
+    if (_filteredTodos != null && _filteredTodos!.isNotEmpty) {
+      return _filteredTodos!.first.id; // Adjust logic if a specifictodo is needed
+    }
+    return null;
   }
 
   List<Todo> handleRecurringTodos(List<Todo> todos) {
@@ -450,156 +458,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                   ),
 
-                  Container(
-                    color: Colors.blue[100],
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      // crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                      TextField(
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                            controller: _controller,
-                            maxLines: null,
-                            decoration: const InputDecoration(
-                              labelText: 'Task',
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        Column(
-                          children: [
-                            // Display the list of subtasks
-                            ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _subtasks.length,
-                              itemBuilder: (context, index) {
-                                final subtask = _subtasks[index];
-                                return Row(
-                                  children: [
-                                    Checkbox(
-                                      value: subtask['completed'] ?? false,
-                                      shape: const CircleBorder(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _subtasks[index]['completed'] = value;
-                                        });
-                                      },
-                                    ),
-                                    Text(subtask['text']),
-                                  ],
-                                );
-                              },
-                            ),
-                            // Input field for adding subtasks
-                            TextField(
-                              controller: _subtaskController,
-                              decoration: const InputDecoration(
-                                hintText: 'Add Subtask',
-                                border: InputBorder.none, // Removes the bounding box
-                              ),
-                              onSubmitted: (value) {
-                                if (value.isNotEmpty) {
-                                  setState(() {
-                                    _subtasks.add({'text': value, 'completed': false});
-                                  });
-                                  _subtaskController.clear();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.notes, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                keyboardType: TextInputType.multiline,
-                                textInputAction: TextInputAction.newline,
-                                controller: _descriptionController,
-                                maxLines: null,
-                                decoration: const InputDecoration(
-                                  labelText: 'description',
-                                  border: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                      Row(
-                        children: [
-                          const Text('priority  ', style: TextStyle(fontSize: 16)),
-                          DropdownButton<String>(
-                            value: _selectedPriority,
-                            items: const [
-                              DropdownMenuItem(value: 'none', child: Text('None')),
-                              DropdownMenuItem(value: 'low', child: Text('Low')),
-                              DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                              DropdownMenuItem(value: 'high', child: Text('High')),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedPriority = value ?? 'none';
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const Text('repeat  ', style: TextStyle(fontSize: 16)),
-                          DropdownButton<String>(
-                            value: _selectedRecurrence,
-                            items: const [
-                              DropdownMenuItem(value: null, child: Text('None')),
-                              DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                              DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                              DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedRecurrence = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (user != null && _controller.text.isNotEmpty) {
-                              await FirebaseFirestore.instance.collection('todos').add({
-                                'text': _controller.text,
-                                'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
-                                'createdAt': FieldValue.serverTimestamp(),
-                                'uid': user.uid,
-                                'priority': _selectedPriority,
-                                'recurrence': _selectedRecurrence,
-                                'color': _selectedColor?.toARGB32(),
-                                'subtasks': _subtasks,
-                              });
-                              _controller.clear();
-                              _descriptionController.clear();
-                              _subtasks.clear();
-                              setState(() {
-                                _selectedPriority = 'none';// Reset priority
-                                _selectedRecurrence = null;
-                              });
-                            }
-                          },
-                          child: const Text('Add'),
-                        ),
-
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
           );
         },
       ),
-    );
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddTodoScreen()),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+       );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/todo.dart';
+import '../details/readOnly_detail_screen.dart';
 
 class ArchivedTodosScreen extends StatefulWidget {
   final List<Todo> todos;
@@ -69,83 +70,124 @@ class _ArchivedTodosScreenState extends State<ArchivedTodosScreen> {
         itemCount: _archivedTodos.length,
         itemBuilder: (context, index) {
           final todo = _archivedTodos[index];
-          return ListTile(
-            key: ValueKey(todo.id),
-            title: Text(todo.text),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (todo.subtasks.isNotEmpty)
-                  ...todo.subtasks.map((subtask) => Row(
-                    children: [
-                      Checkbox(
-                        value: subtask['completed'] ?? false,
-                        shape: const CircleBorder(),
-                        onChanged: null, // Archived TODOs are read-only
-                      ),
-                      Text(subtask['text']),
-                    ],
-                  )),
-                if (todo.description != null && todo.description!.isNotEmpty)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.notes, size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          todo.description!,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ),
-                    ],
-                  ),
-                if (todo.dueAt != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    todo.dueAt!.toLocal().toString().split(' ')[0],
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(),
+                  spreadRadius: 2,
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
-            trailing: Row(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.unarchive),
-                  onPressed: () => _unarchiveTodo(todo),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Todo'),
-                        content: const Text('Are you sure you want to delete this todo?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Delete'),
-                          ),
-                        ],
+                ListTile(
+                  key: ValueKey(todo.id),
+                  leading: IconButton(
+                    icon: const Icon(Icons.unarchive),
+                    onPressed: () => _unarchiveTodo(todo),
+                  ),
+                  title: Text(todo.text),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (todo.subtasks.isNotEmpty)
+                        ...todo.subtasks.map((subtask) => Row(
+                          children: [
+                            Checkbox(
+                              value: subtask['completed'] ?? false,
+                              shape: const CircleBorder(),
+                              onChanged: null, // Archived TODOs are read-only
+                            ),
+                            Expanded(
+                              child: Text(
+                                subtask['text'],
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        )),
+                      if (todo.description != null && todo.description!.isNotEmpty)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.notes, size: 16, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                todo.description!,
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (todo.dueAt != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          todo.dueAt!.toLocal().toString().split(' ')[0],
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Todo'),
+                              content: const Text('Are you sure you want to delete this todo?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await FirebaseFirestore.instance
+                                .collection('todos')
+                                .doc(todo.id)
+                                .delete();
+                            setState(() {
+                              _archivedTodos.remove(todo);
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Todo deleted!')),
+                            );
+                          }
+                        },
                       ),
-                    );
-                    if (confirm == true) {
-                      await FirebaseFirestore.instance.collection('todos').doc(todo.id).delete();
-                      setState(() {
-                        _archivedTodos.remove(todo);
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Todo deleted!')),
-                      );
-                    }
-                  },
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ReadOnlyDetailScreen(todo: todo),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -154,4 +196,4 @@ class _ArchivedTodosScreenState extends State<ArchivedTodosScreen> {
       ),
     );
   }
-}
+  }

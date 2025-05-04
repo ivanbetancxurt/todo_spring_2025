@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedPriority = 'none';
   String? _selectedRecurrence;
   Color? _selectedColor;
-  List<Map<String, dynamic>> _subtasks = [];
+  final List<Map<String, dynamic>> _subtasks = [];
   final _userStatsService = UserStatsService();
   FilterSheetResult _filters = FilterSheetResult(
     sortBy: 'date',
@@ -342,46 +342,77 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (todo.subtasks.isNotEmpty)
-                                      ...todo.subtasks.asMap().entries.map((entry) {
-                                        final subtaskIndex = entry.key;
-                                        final subtask = entry.value;
-                                        return Container(
-                                          margin: const EdgeInsets.only(bottom: 4.0),
-                                          child: Row(
-                                            children: [
-                                              Checkbox(
-                                                value: subtask['completed'] ?? false,
-                                                shape: const CircleBorder(),
-                                                onChanged: (value) async {
-                                                  final updatedSubtasks = List<Map<String, dynamic>>.from(todo.subtasks);
-                                                  updatedSubtasks[subtaskIndex]['completed'] = value;
-                                                  await FirebaseFirestore.instance
-                                                      .collection('todos')
-                                                      .doc(todo.id)
-                                                      .update({'subtasks': updatedSubtasks});
-                                                  setState(() {
-                                                    todo.subtasks[subtaskIndex]['completed'] = value;
-                                                  });
-                                                },
-                                              ),
-                                              Text(subtask['text']),
-                                            ],
-                                          ),
-                                        );
-                                      }),
-                                    if (todo.description != null && todo.description!.isNotEmpty)
-                                      Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(Icons.notes, size: 16, color: Colors.grey),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              todo.description!,
-                                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      ...todo.subtasks.map((subtask) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 4.0),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Checkbox(
+                                              value: subtask['completed'] ?? false,
+                                              shape: const CircleBorder(),
+                                              onChanged: (value) async {
+                                                final updatedSubtasks = List<Map<String, dynamic>>.from(todo.subtasks);
+                                                updatedSubtasks[todo.subtasks.indexOf(subtask)]['completed'] = value;
+                                                await FirebaseFirestore.instance
+                                                    .collection('todos')
+                                                    .doc(todo.id)
+                                                    .update({'subtasks': updatedSubtasks});
+                                                setState(() {
+                                                  todo.subtasks[todo.subtasks.indexOf(subtask)]['completed'] = value;
+                                                });
+                                              },
                                             ),
-                                          ),
-                                        ],
+                                            Expanded(
+                                              child: Text(
+                                                subtask['text'],
+                                                style: const TextStyle(fontSize: 14),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
+                                    if (todo.description != null && todo.description!.isNotEmpty)
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final textSpan = TextSpan(
+                                            text: todo.description,
+                                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                          );
+                                          final textPainter = TextPainter(
+                                            text: textSpan,
+                                            maxLines: 2,
+                                            textDirection: TextDirection.ltr,
+                                          )..layout(maxWidth: constraints.maxWidth);
+
+                                          final isOverflowing = textPainter.didExceedMaxLines;
+
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                todo.description!,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                              ),
+                                              if (isOverflowing)
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) => DetailScreen(todo: todo, todos: _todos),
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: const Text(
+                                                    'Read More',
+                                                    style: TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
+                                            ],
+                                          );
+                                        },
                                       ),
                                     if (todo.dueAt != null) ...[
                                       const SizedBox(height: 4),
@@ -418,6 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
                   ),
+
                   Container(
                     color: Colors.blue[100],
                     padding: const EdgeInsets.all(32.0),
@@ -488,7 +520,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 controller: _descriptionController,
                                 maxLines: null,
                                 decoration: const InputDecoration(
-                                  labelText: 'Description',
+                                  labelText: 'description',
                                   border: InputBorder.none,
                                 ),
                               ),
@@ -498,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 8),
                       Row(
                         children: [
-                          const Text('Priority: ', style: TextStyle(fontSize: 16)),
+                          const Text('priority  ', style: TextStyle(fontSize: 16)),
                           DropdownButton<String>(
                             value: _selectedPriority,
                             items: const [
@@ -517,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Row(
                         children: [
-                          const Text('Recurrence: ', style: TextStyle(fontSize: 16)),
+                          const Text('repeat  ', style: TextStyle(fontSize: 16)),
                           DropdownButton<String>(
                             value: _selectedRecurrence,
                             items: const [

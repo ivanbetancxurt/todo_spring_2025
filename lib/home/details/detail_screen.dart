@@ -25,6 +25,7 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late TextEditingController _textController;
   late TextEditingController _subtaskController;
+  late TextEditingController _descriptionController;
   DateTime? _selectedDueDate;
   final _userStatsService = UserStatsService();
   bool _isCompleted = false;
@@ -38,6 +39,7 @@ class _DetailScreenState extends State<DetailScreen> {
     super.initState();
     _textController = TextEditingController(text: widget.todo.text);
     _subtaskController = TextEditingController();
+    _descriptionController = TextEditingController(text: widget.todo.description ?? '');
     _selectedDueDate = widget.todo.dueAt;
     _isCompleted = widget.todo.completedAt != null;
     _priority = widget.todo.priority;
@@ -219,6 +221,7 @@ class _DetailScreenState extends State<DetailScreen> {
   void dispose() {
     _textController.dispose();
     _subtaskController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -236,43 +239,14 @@ class _DetailScreenState extends State<DetailScreen> {
           IconButton(
             icon: const Icon(Icons.archive),
             onPressed: () async {
-
-              // Archive theTODO in Firestore
               await FirebaseFirestore.instance
                   .collection('todos')
                   .doc(widget.todo.id)
                   .update({'isArchived': true});
-
               if (mounted) {
                 Navigator.pop(context);
-
-                // Show SnackBar on the HomeScreen
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Todo archived!'),
-                    action: SnackBarAction(
-                      label: 'Undo',
-                      onPressed: () async {
-                        // Unarchive theTODO in Firestore
-                        await FirebaseFirestore.instance
-                            .collection('todos')
-                            .doc(widget.todo.id)
-                            .update({'isArchived': false});
-
-                        // Navigate back to the DetailScreen for theTODO
-                        if (mounted) {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) => DetailScreen(
-                                todo: widget.todo,
-                                todos: widget.todos,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
+                  const SnackBar(content: Text('Todo archived!')),
                 );
               }
             },
@@ -304,274 +278,291 @@ class _DetailScreenState extends State<DetailScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              controller: _textController,
-              maxLines: null,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-              ),
-              onSubmitted: (newText) async {
-                if (newText.isNotEmpty && newText != widget.todo.text) {
-                  await _updateText(newText);
-                }
-              },
-            ),
-            Column(
-              children: [
-                ...widget.todo.subtasks.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final subtask = entry.value;
-                  return Row(
-                    children: [
-                      Checkbox(
-                        value: subtask['completed'] ?? false,
-                        shape: const CircleBorder(),
-                        onChanged: (value) async {
-                          final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks);
-                          updatedSubtasks[index]['completed'] = value;
-                          await FirebaseFirestore.instance
-                              .collection('todos')
-                              .doc(widget.todo.id)
-                              .update({'subtasks': updatedSubtasks});
-                          setState(() {
-                            widget.todo.subtasks[index]['completed'] = value;
-                          });
-                        },
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.check, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _textController,
+                      maxLines: null,
+                      textInputAction: TextInputAction.newline,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
                       ),
-                      Expanded(child: Text(subtask['text'])),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () async {
-                          final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks);
-                          updatedSubtasks.removeAt(index);
-                          await FirebaseFirestore.instance
-                              .collection('todos')
-                              .doc(widget.todo.id)
-                              .update({'subtasks': updatedSubtasks});
-                          setState(() {
-                            widget.todo.subtasks.removeAt(index);
-                          });
-                        },
-                      ),
-                    ],
-                  );
-                }).toList(),
-                TextField(
-                  controller: _subtaskController,
-                  decoration: const InputDecoration(
-                    hintText: 'Add Subtask',
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (value) async {
-                    if (value.isNotEmpty) {
-                      final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks)
-                        ..add({'text': value, 'completed': false});
-                      await FirebaseFirestore.instance
-                          .collection('todos')
-                          .doc(widget.todo.id)
-                          .update({'subtasks': updatedSubtasks});
-                      setState(() {
-                        widget.todo.subtasks.add({'text': value, 'completed': false});
-                        _subtaskController.clear();
-                      });
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 14.0), // Adjust alignment to the first line
-                  child: const Icon(Icons.notes, size: 16, color: Colors.grey),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: TextField(
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    controller: TextEditingController(text: widget.todo.description),
-                    maxLines: null,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
+                      onChanged: (value) async {
+                        await FirebaseFirestore.instance
+                            .collection('todos')
+                            .doc(widget.todo.id)
+                            .update({'text': value});
+                      },
                     ),
-                    onSubmitted: (newDescription) async {
-                      if (newDescription.isNotEmpty && newDescription != widget.todo.description) {
-                        await _updateDescription(newDescription);
-                      }
-                    },
                   ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                const Text('Priority: ', style: TextStyle(fontSize: 16)),
-                DropdownButton<String>(
-                  value: _priority,
-                  items: const [
-                    DropdownMenuItem(value: 'none', child: Text('None')),
-                    DropdownMenuItem(value: 'low', child: Text('Low')),
-                    DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                    DropdownMenuItem(value: 'high', child: Text('High')),
-                  ],
-                  onChanged: (newPriority) async {
-                    if (newPriority != null) {
-                      setState(() {
-                        _priority = newPriority; // Update local variable instantly
-                      });
-                      await FirebaseFirestore.instance
-                          .collection('todos')
-                          .doc(widget.todo.id)
-                          .update({'priority': newPriority}); // Update Firestore
-                    }
-                  },
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                const Text('Repeat: ', style: TextStyle(fontSize: 16)),
-            DropdownButton<String>(
-              value: _recurrence,
-              items: const [
-                DropdownMenuItem(value: null, child: Text('None')),
-                DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-              ],
-              onChanged: (newRecurrence) async {
-                if (newRecurrence != null) {
-                  setState(() {
-                    _recurrence = newRecurrence;
-                  });
-                  await FirebaseFirestore.instance
-                      .collection('todos')
-                      .doc(widget.todo.id)
-                      .update({'recurrence': newRecurrence});
-                }
-              },
-            ),
-              ],
-            ),
-            Row(
-              children: [
-                const Text('Color: ', style: TextStyle(fontSize: 16)),
-                GestureDetector(
-                  onTap: () async {
-                    await showDialog<Color>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Pick a color'),
-                        content: SingleChildScrollView(
-                          child: BlockPicker(
-                            pickerColor: _color != null ? Color(_color!) : Colors.grey,
-                            onColorChanged: (newColor) async {
-                              Navigator.of(context).pop(newColor);
-                                setState(() {
-                                  _color = newColor.toARGB32();
-                                });
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (widget.todo.subtasks.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.checklist, size: 20, color: Colors.grey),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    ...widget.todo.subtasks.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final subtask = entry.value;
+                      return Row(
+                        children: [
+                          Checkbox(
+                            value: subtask['completed'] ?? false,
+                            shape: const CircleBorder(),
+                            onChanged: (value) async {
+                              final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks);
+                              updatedSubtasks[index]['completed'] = value;
+                              await FirebaseFirestore.instance
+                                  .collection('todos')
+                                  .doc(widget.todo.id)
+                                  .update({'subtasks': updatedSubtasks});
+                              setState(() {
+                                widget.todo.subtasks[index]['completed'] = value;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: TextEditingController(text: subtask['text']),
+                              maxLines: null,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                              ),
+                              onChanged: (value) async {
+                                final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks);
+                                updatedSubtasks[index]['text'] = value;
                                 await FirebaseFirestore.instance
                                     .collection('todos')
                                     .doc(widget.todo.id)
-                                    .update({'color': newColor.toARGB32()});
+                                    .update({'subtasks': updatedSubtasks});
+                              },
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () async {
+                              final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks)
+                                ..removeAt(index);
+                              await FirebaseFirestore.instance
+                                  .collection('todos')
+                                  .doc(widget.todo.id)
+                                  .update({'subtasks': updatedSubtasks});
+                              setState(() {
+                                widget.todo.subtasks.removeAt(index);
+                              });
                             },
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: _color != null ? Color(_color!) : Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                        ],
+                      );
+                    }),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Due Date'),
-              subtitle: Text(_selectedDueDate?.toLocal().toString().split('.')[0] ?? 'No due date'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+              const SizedBox(height: 16),
+              Row(
                 children: [
-                  if (_selectedDueDate != null)
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () async {
-                        _updateDueDate(null);
-                        setState(() {
-                          _selectedDueDate = null;
-                        });
+                  const Icon(Icons.add, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _subtaskController,
+                      decoration: const InputDecoration(
+                        hintText: 'Add Subtask',
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (value) async {
+                        if (value.isNotEmpty) {
+                          final updatedSubtasks = List<Map<String, dynamic>>.from(widget.todo.subtasks)
+                            ..add({'text': value, 'completed': false});
+                          await FirebaseFirestore.instance
+                              .collection('todos')
+                              .doc(widget.todo.id)
+                              .update({'subtasks': updatedSubtasks});
+                          setState(() {
+                            widget.todo.subtasks.add({'text': value, 'completed': false});
+                          });
+                          _subtaskController.clear();
+                        }
                       },
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: () async {
-                      final isGranted = await _requestNotificationPermission();
-                      if (!context.mounted) return;
-
-                      if (!isGranted) {
-                        _showPermissionDeniedSnackbar(context);
-                        return;
-                      }
-
-                      await _initializeNotifications();
-                      if (!context.mounted) return;
-
-                      final selectedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDueDate ?? DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2050),
-                      );
-                      if (!context.mounted) return;
-                      if (selectedDate == null) return;
-
-                      final selectedTime = await showTimePicker(
-                        context: context,
-                        initialTime:
-                            _selectedDueDate != null ? TimeOfDay.fromDateTime(_selectedDueDate!) : TimeOfDay.now(),
-                      );
-                      if (selectedTime == null) return;
-
-                      final DateTime dueDate = DateTime(
-                        selectedDate.year,
-                        selectedDate.month,
-                        selectedDate.day,
-                        selectedTime.hour,
-                        selectedTime.minute,
-                      );
-
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.notes, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _descriptionController,
+                      maxLines: null,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (value) async {
+                        await FirebaseFirestore.instance
+                            .collection('todos')
+                            .doc(widget.todo.id)
+                            .update({'description': value.isNotEmpty ? value : null});
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.priority_high, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  DropdownButton<String>(
+                    value: _priority,
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('None')),
+                      DropdownMenuItem(value: 'low', child: Text('Low')),
+                      DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                      DropdownMenuItem(value: 'high', child: Text('High')),
+                    ],
+                    onChanged: (value) async {
                       setState(() {
-                        _selectedDueDate = dueDate;
+                        _priority = value ?? 'none';
                       });
-
-                      await _updateDueDate(dueDate);
-                      await _scheduleNotification(
-                        widget.todo.id,
-                        dueDate,
-                        widget.todo.text,
-                      );
+                      await FirebaseFirestore.instance
+                          .collection('todos')
+                          .doc(widget.todo.id)
+                          .update({'priority': _priority});
                     },
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.repeat, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  DropdownButton<String>(
+                    value: _recurrence,
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('None')),
+                      DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                      DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                      DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                    ],
+                    onChanged: (value) async {
+                      setState(() {
+                        _recurrence = value;
+                      });
+                      await FirebaseFirestore.instance
+                          .collection('todos')
+                          .doc(widget.todo.id)
+                          .update({'recurrence': _recurrence});
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.color_lens, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final color = await showDialog<Color?>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Pick a color'),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                BlockPicker(
+                                  pickerColor: _color != null ? Color(_color!) : Colors.white,
+                                  onColorChanged: (selectedColor) {
+                                    Navigator.of(context).pop(selectedColor);
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop(null); // No color selected
+                                  },
+                                  child: const Text('No Color'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                      if (color != null || _color != null) {
+                        setState(() {
+                          _color = color?.toARGB32(); // Set to null if "No Color" is selected
+                        });
+                        await FirebaseFirestore.instance
+                            .collection('todos')
+                            .doc(widget.todo.id)
+                            .update({'color': _color});
+                      }
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _color != null ? Color(_color!) : Colors.white,
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _selectedDueDate = date;
+                        });
+                        await FirebaseFirestore.instance
+                            .collection('todos')
+                            .doc(widget.todo.id)
+                            .update({'dueAt': Timestamp.fromDate(date)});
+                      }
+                    },
+                    child: Text(
+                      _selectedDueDate != null
+                          ? 'Due: ${_selectedDueDate!.toLocal().toString().split(' ')[0]}'
+                          : 'Set Due Date',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
